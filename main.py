@@ -1,7 +1,10 @@
 import telebot
-import time
+import os
 
-TOKEN = "YOUR_BOT_TOKEN"
+TOKEN = os.getenv("BOT_TOKEN")
+
+if not TOKEN:
+    raise ValueError("BOT_TOKEN is missing!")
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -19,5 +22,4 @@ def help(message):
     bot.reply_to(message, "Price Action Bot is running.")
 
 print("Bot Started...")
-
 bot.infinity_polling()
