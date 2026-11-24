@@ -1,95 +1,78 @@
 import os
-import time
 import requests
 import telebot
 
 TOKEN = os.getenv("BOT_TOKEN")
+API_KEY = os.getenv("OTCHARTS_API_KEY")
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN missing!")
 
+if not API_KEY:
+    raise ValueError("OTCHARTS_API_KEY missing!")
+
 bot = telebot.TeleBot(TOKEN)
 
-BINANCE_URL = "https://api.binance.com/api/v3/klines"
+BASE_URL = "https://otcharts.com"
+
+HEADERS = {
+    "Authorization": f"Bearer {API_KEY}"
+}
 
 
-def get_candles():
+def test_api():
     response = requests.get(
-        BINANCE_URL,
-        params={
-            "symbol": "BTCUSDT",
-            "interval": "1m",
-            "limit": 100
-        },
-        timeout=15
+        f"{BASE_URL}/v1/venues",
+        headers=HEADERS,
+        timeout=20
     )
+
     response.raise_for_status()
-    return response.json()
 
+    data = response.json()
 
-def analyze_market():
-    candles = get_candles()
+    venues = data.get("venues", [])
 
-    closes = [float(c[4]) for c in candles]
-    opens = [float(c[1]) for c in candles]
-    highs = [float(c[2]) for c in candles]
-    lows = [float(c[3]) for c in candles]
-
-    last = closes[-1]
-
-    ema_fast = sum(closes[-9:]) / 9
-    ema_slow = sum(closes[-21:]) / 21
-
-    bullish = closes[-1] > opens[-1]
-    bearish = closes[-1] < opens[-1]
-
-    signal = "WAIT"
-    reason = "Clear setup nahi mila."
-
-    if ema_fast > ema_slow and bullish:
-        signal = "CALL"
-        reason = "Short-term trend bullish aur candle bullish hai."
-
-    elif ema_fast < ema_slow and bearish:
-        signal = "PUT"
-        reason = "Short-term trend bearish aur candle bearish hai."
-
-    return (
-        f"BTC/USDT LIVE ANALYSIS\n\n"
-        f"Price: {last}\n"
-        f"1-minute signal: {signal}\n"
-        f"Reason: {reason}\n\n"
-        f"Data: Binance LIVE\n"
-        f"Note: Signal guaranteed nahi hai."
+    quotex = next(
+        (v for v in venues if v.get("id") == "quotex"),
+        None
     )
+
+    if not quotex:
+        return "Quotex venue not found!"
+
+    if not quotex.get("open"):
+        return "Quotex API access is not open!"
+
+    return "OTCharts connected!\nQuotex access: OPEN"
 
 
 @bot.message_handler(commands=["start"])
 def start(message):
     bot.reply_to(
         message,
-        "Welcome to Price Action Bot!\n\n"
-        "Commands:\n"
-        "/signal - Market analysis\n"
-        "/help - Help"
+        "Welcome to Quotex Price Action Bot!\n\n"
+        "/testapi - Test OTCharts connection\n"
+        "/signal - Signal status"
     )
+
+
+@bot.message_handler(commands=["testapi"])
+def test(message):
+    try:
+        bot.reply_to(message, test_api())
+    except Exception as e:
+        bot.reply_to(message, f"API Error: {e}")
 
 
 @bot.message_handler(commands=["signal"])
 def signal(message):
-    try:
-        bot.reply_to(message, analyze_market())
-    except Exception as e:
-        bot.reply_to(message, f"Data error: {e}")
-
-
-@bot.message_handler(commands=["help"])
-def help_command(message):
     bot.reply_to(
         message,
-        "/signal bhejein BTC/USDT analysis ke liye."
+        "Market data verification pending.\n"
+        "No signal generated yet."
     )
 
 
-print("Bot Started...")
+print("Quotex Bot Started...")
 bot.infinity_polling()
