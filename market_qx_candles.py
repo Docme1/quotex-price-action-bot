@@ -173,7 +173,7 @@ class MarketQX:
     def connect(self, wait_instruments: float = 75.0) -> "MarketQX":
         self._ws = websocket.create_connection(
             self.url, header=self._headers(), timeout=20,
-            sslopt={"cert_reqs": ssl.CERT_NONE},
+            sslopt={"cert_reqs": ssl.CERT_REQUIRED},
             **self._proxy_opts(),
         )
         self._ws.settimeout(3)
