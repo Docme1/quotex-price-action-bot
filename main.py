@@ -1,7 +1,9 @@
 import os
 import requests
 import telebot
-
+import threading
+import time
+from market_qx_candles import MarketQX
 TOKEN = os.getenv("BOT_TOKEN")
 API_KEY = os.getenv("OTCHARTS_API_KEY")
 
