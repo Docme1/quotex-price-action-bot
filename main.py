@@ -74,7 +74,53 @@ def signal(message):
         "Market data verification pending.\n"
         "No signal generated yet."
     )
+@bot.message_handler(commands=["testfeed"])
+def testfeed(message):
 
+    def check_feed():
+        qx = None
+        try:
+            bot.reply_to(message, "Live OTC feed check ho raha hai...")
+
+            qx = MarketQX().connect(wait_instruments=20)
+
+            assets = [
+                a for a in qx.instruments
+                if "usdjpy" in a.lower() and "otc" in a.lower()
+            ]
+
+            if not assets:
+                bot.reply_to(message, "USDJPY OTC pair feed mein nahi mila.")
+                return
+
+            asset = assets[0]
+            received = threading.Event()
+            result = {}
+
+            def on_tick(a, ts, price, *args):
+                if a == asset:
+                    result["price"] = price
+                    received.set()
+
+            qx.on_tick(on_tick)
+            qx.follow(asset, 60)
+
+            if received.wait(20):
+                bot.reply_to(
+                    message,
+                    f"Live feed tick received!\n{asset}: {result['price']}\n"
+                    "Price matching abhi verify nahi hui."
+                )
+            else:
+                bot.reply_to(message, "Feed se live tick nahi mili.")
+
+        except Exception as e:
+            bot.reply_to(message, f"Feed error: {e}")
+        finally:
+            if qx:
+                qx.close()
+
+    threading.Thread(target=check_feed, daemon=True).start()
 
 print("Quotex Bot Started...")
 bot.infinity_polling()
